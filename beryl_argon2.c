@@ -1,4 +1,4 @@
-#include <berylscript.h>
+#include <beryl.h>
 #include <argon2.h>
 
 #include <assert.h>
@@ -75,6 +75,50 @@ static struct i_val encode_callback(const struct i_val *args, i_size n_args) {
 		return BERYL_ERR("Expected salt (string) as second argument for 'hash'");
 	}
 	
+	if(n_args > 5) {
+		return BERYL_ERR("'encode' accepts at most 5 arguments");
+	}
+	
+	int iterations = params.iterations;
+	if(n_args >= 3) {
+		if(!beryl_is_integer(args[2])) {
+			beryl_blame_arg(args[2]);
+			return BERYL_ERR("Expected integer number (number of iterations) as third argument for 'encode'. Got '%0'");
+		}
+		iterations = beryl_as_num(args[2]);
+		if(iterations < 1) {
+			beryl_blame_arg(args[2]);
+			return BERYL_ERR("Number of iterations cannot be less than 1 (%0).");
+		}
+	}
+	
+	unsigned mem = params.mem;
+	if(n_args >= 4) {
+		if(!beryl_is_integer(args[3])) {
+			beryl_blame_arg(args[3]);
+			return BERYL_ERR("Expected integer number (amount of memory (kB) to use) as fourth argument for 'encode'. Got '%0'");
+		}
+		if(beryl_as_num(args[3]) < 1) {
+			beryl_blame_arg(args[3]);
+			return BERYL_ERR("Memory amount cannot be less than 1 (got %0).");
+		}
+		mem = beryl_as_num(args[3]);
+	}
+	
+	int parallel = params.p;
+	if(n_args >= 5) {
+		if(!beryl_is_integer(args[4])) {
+			beryl_blame_arg(args[4]);
+			return BERYL_ERR("Expected integer number (number of threads to use) as fifth argument for 'encode'. Got '%0'");
+		}
+		parallel = beryl_as_num(args[4]);
+		if(parallel < 1) {
+			beryl_blame_arg(args[4]);
+			return BERYL_ERR("Number of threads cannot be less than 1 (got %0).");
+		}
+	}
+	
+	
 	i_size salt_len = BERYL_LENOF(args[1]);
 	size_t total_len = argon2_encodedlen(params.iterations, params.mem, params.p, salt_len, params.len, Argon2_i);
 	if(total_len > I_SIZE_MAX)
@@ -86,9 +130,9 @@ static struct i_val encode_callback(const struct i_val *args, i_size n_args) {
 	char *hash_to = (char *) beryl_get_raw_str(&res);
 	
 	int err = argon2i_hash_encoded(
-		params.iterations, 
-		params.mem, 
-		params.p, 
+		iterations, 
+		mem, 
+		parallel,
 		beryl_get_raw_str(&args[0]), 
 		BERYL_LENOF(args[0]),
 		beryl_get_raw_str(&args[1]),
@@ -153,7 +197,7 @@ static void init_lib() {
 	#define FN(name, arity, fn) { arity, false, name, sizeof(name) - 1, fn }
 	static struct beryl_external_fn fns[] = {
 		FN("hash", 2, hash_callback),
-		FN("encode", 2, encode_callback),
+		FN("encode", -3, encode_callback),
 		FN("verify", 2, verify_callback)
 	};
 	

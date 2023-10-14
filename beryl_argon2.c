@@ -6,9 +6,9 @@
 #include <limits.h>
 
 static struct { int iterations; unsigned mem; int p; unsigned len; } params = {
-	3, //These defaults are the same as the argon2 command line tool (see `man argon2`
-	2 << 2,
-	1,
+	2,
+	1024 * 1024 / 8, //1/8 a gigabyte. I.e 1024 * 1024 / 8 kB. ~ 128 MB
+	2,
 	32
 };
 
@@ -109,6 +109,7 @@ static struct i_val encode_callback(const struct i_val *args, i_size n_args) {
 }
 
 static struct i_val verify_callback(const struct i_val *args, i_size n_args) {
+	(void) n_args;
 	if(BERYL_TYPEOF(args[0]) != TYPE_STR) {
 		beryl_blame_arg(args[0]);
 		return BERYL_ERR("Expected string as first argument for 'verify'");
